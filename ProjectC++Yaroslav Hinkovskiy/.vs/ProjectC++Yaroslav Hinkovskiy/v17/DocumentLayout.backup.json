@@ -1,0 +1,37 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\Admin\\OneDrive\\\u0414\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0438\\GitHub\\YHinkovskiyUnrealE5\\ProjectC\u002B\u002BYaroslav Hinkovskiy\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{F6D89F4E-773C-40BC-9EEB-4224C3A3CB41}|ProjectC\u002B\u002BYaroslav Hinkovskiy\\ProjectC\u002B\u002BYaroslav Hinkovskiy.vcxproj|C:\\Users\\Admin\\OneDrive\\\u0414\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0438\\GitHub\\YHinkovskiyUnrealE5\\ProjectC\u002B\u002BYaroslav Hinkovskiy\\ProjectC\u002B\u002BYaroslav Hinkovskiy\\ProjectC\u002B\u002BYaroslav Hinkovskiy.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{F6D89F4E-773C-40BC-9EEB-4224C3A3CB41}|ProjectC\u002B\u002BYaroslav Hinkovskiy\\ProjectC\u002B\u002BYaroslav Hinkovskiy.vcxproj|solutionrelative:ProjectC\u002B\u002BYaroslav Hinkovskiy\\ProjectC\u002B\u002BYaroslav Hinkovskiy.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "ProjectC\u002B\u002BYaroslav Hinkovskiy.cpp",
+              "DocumentMoniker": "C:\\Users\\Admin\\OneDrive\\\u0414\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0438\\GitHub\\YHinkovskiyUnrealE5\\ProjectC\u002B\u002BYaroslav Hinkovskiy\\ProjectC\u002B\u002BYaroslav Hinkovskiy\\ProjectC\u002B\u002BYaroslav Hinkovskiy.cpp",
+              "RelativeDocumentMoniker": "ProjectC\u002B\u002BYaroslav Hinkovskiy\\ProjectC\u002B\u002BYaroslav Hinkovskiy.cpp",
+              "ToolTip": "C:\\Users\\Admin\\OneDrive\\\u0414\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0438\\GitHub\\YHinkovskiyUnrealE5\\ProjectC\u002B\u002BYaroslav Hinkovskiy\\ProjectC\u002B\u002BYaroslav Hinkovskiy\\ProjectC\u002B\u002BYaroslav Hinkovskiy.cpp",
+              "RelativeToolTip": "ProjectC\u002B\u002BYaroslav Hinkovskiy\\ProjectC\u002B\u002BYaroslav Hinkovskiy.cpp",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABYAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2025-12-09T18:43:30.309Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
