@@ -3,134 +3,138 @@
 
 #include <iostream>
 #include <vector>
-#include <limits>
 #include <string>
+#include <map>
+#include <cmath>
+#include <limits>
 
-void setPlayersData(const int& player_count, std::vector<std::string>& name, std::vector<float>& health, std::vector<std::string>& character_class)
-{
-    std::string player_name;
-    float player_health;
-    std::string player_class;
+typedef std::map<int, int> Army;
 
-    for (int i = 0; i < player_count; i++)
-    {
-        std::cout << "\nEnter nickname for player " << (i + 1) << ": ";
-        std::cin >> player_name;
+struct Character {
+    std::string name;
+    std::string character_class;
+    float health;
+    int x, y;
+    Army army;
+    bool took_damage;
 
-        std::cout << "Enter player's health for " << player_name << ": ";
-        while (!(std::cin >> player_health))
-        {
+    
+    Character() : health(0), x(0), y(0), took_damage(false) {}
+};
+
+void setPlayersData(std::vector<Character>& characters) {
+    for (size_t i = 0; i < characters.size(); i++) {
+        std::cout << "\n--- Setting data for player " << (i + 1) << " ---\n";
+        std::cout << "Enter nickname: ";
+        std::cin >> characters[i].name;
+
+        std::cout << "Enter health: ";
+        while (!(std::cin >> characters[i].health)) {
             std::cin.clear();
             std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            std::cout << "Invalid value. Enter health: ";
+            std::cout << "Invalid. Enter health: ";
         }
 
-        std::cout << "Enter class for " << player_name << ": ";
-        std::cin >> player_class;
+        std::cout << "Enter class: ";
+        std::cin >> characters[i].character_class;
 
-        name.push_back(player_name);
-        health.push_back(player_health);
-        character_class.push_back(player_class);
+        std::cout << "Enter position (x y): ";
+        std::cin >> characters[i].x >> characters[i].y;
+
+        int n_units;
+        std::cout << "Enter number of unit entries for army: ";
+        std::cin >> n_units;
+
+        for (int j = 0; j < n_units; j++) {
+            int unit_type, count;
+            std::cout << "  Entry " << j + 1 << ". Type and Count: ";
+            while (!(std::cin >> unit_type >> count)) {
+                std::cin.clear();
+                std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                std::cout << "  Error! Enter two numbers: ";
+            }
+            characters[i].army[unit_type] += count;
+        }
     }
 }
 
-void getPlayersState(std::vector<std::string>& name, std::vector<float>& health, std::vector<std::string>& character_class)
-{
-    std::cout << "\n--- Current Players State ---" << std::endl;
-    for (int i = 0; i < health.size(); i++)
-    {
-        if (health[i] <= 0) health[i] = 0;
+void processMeteor(std::vector<Character>& characters) {
+    int mx, my;
+    float m_damage, m_power;
 
-        std::cout << "Name: " << name[i] << std::endl;
-        std::cout << "Class: " << character_class[i] << std::endl;
+    std::cout << "\n--- Meteor Event ---\n";
+    std::cout << "Enter meteor coordinates (x y): ";
+    std::cin >> mx >> my;
+    std::cout << "Enter meteor damage and power: ";
+    std::cin >> m_damage >> m_power;
 
-        if (health[i] <= 0)
-            std::cout << "Status: DEAD" << std::endl;
-        else
-            std::cout << "Health: " << health[i] << " hp" << std::endl;
+    float affect_radius = 3.0f * m_power;
 
+    for (size_t i = 0; i < characters.size(); ++i) {
+        float dx = (float)characters[i].x - mx;
+        float dy = (float)characters[i].y - my;
+        float distance = (float)std::sqrt(dx * dx + dy * dy);
+
+        if (distance <= affect_radius) {
+            characters[i].health -= m_damage;
+            characters[i].took_damage = true;
+        }
+    }
+}
+
+void getPlayersState(const std::vector<Character>& characters) {
+    std::cout << "\n--- Final Results ---" << std::endl;
+    bool anyone_dead = false;
+
+    for (size_t i = 0; i < characters.size(); ++i) {
+        const Character& c = characters[i];
+        std::cout << "Name: " << c.name << " [" << c.character_class << "]" << std::endl;
+
+        float display_hp = (c.health > 0) ? c.health : 0;
+        if (c.health <= 0) {
+            std::cout << "Status: DEAD (0 hp)" << std::endl;
+            anyone_dead = true;
+        }
+        else {
+            std::cout << "Health: " << display_hp << " hp" << (c.took_damage ? " (WOUNDED)" : "") << std::endl;
+        }
+
+        if (!c.army.empty()) {
+            int min_t = c.army.begin()->first;
+            int max_t = c.army.begin()->first;
+            
+            for (std::map<int, int>::const_iterator it = c.army.begin(); it != c.army.end(); ++it) {
+                if (it->second < c.army.at(min_t)) min_t = it->first;
+                if (it->second > c.army.at(max_t)) max_t = it->first;
+            }
+            std::cout << "Army stats - Max: Type " << max_t << ", Min: Type " << min_t << std::endl;
+        }
         std::cout << "---------------------------" << std::endl;
     }
+
+    if (anyone_dead) {
+        std::cout << "DEAD LIST: ";
+        for (size_t i = 0; i < characters.size(); ++i) {
+            if (characters[i].health <= 0) std::cout << characters[i].name << " ";
+        }
+        std::cout << std::endl;
+    }
 }
 
-void setPlayerCount(int& player_count)
-{
+int main() {
+    int n;
     std::cout << "Enter count of players: ";
-    while (!(std::cin >> player_count) || player_count <= 0)
-    {
-        std::cin.clear();
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        std::cout << "Invalid. Enter count: ";
-    }
-}
+    if (!(std::cin >> n) || n <= 0) return 0;
 
-void causeDamage(std::vector<float>& health)
-{
-    float damage;
-    std::cout << "\nEnter amount of damage to all players (0-9): ";
-    while (!(std::cin >> damage) || damage < 0 || damage > 9)
-    {
-        std::cin.clear();
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        std::cout << "Invalid. Enter 0-9: ";
-    }
-    for (float& hp : health) hp -= damage;
-}
+    std::vector<Character> characters(n);
 
-void handleQuery(const std::vector<std::string>& name, const std::vector<float>& health)
-{
-    int choice;
-    std::cout << "\nChoose option:\n";
-    std::cout << "1. Player with max health\n";
-    std::cout << "2. Player with min health\n";
-    std::cout << "3. Dead players\n";
-    std::cout << "Enter number: ";
+    setPlayersData(characters);
+    processMeteor(characters);
+    getPlayersState(characters);
 
-    while (!(std::cin >> choice) || choice < 1 || choice > 3)
-    {
-        std::cin.clear();
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        std::cout << "Invalid. Enter 1-3: ";
-    }
-
-    if (choice == 1)
-    {
-        int index = 0;
-        for (int i = 1; i < health.size(); i++)
-            if (health[i] > health[index]) index = i;
-
-        std::cout << "Max health: " << name[index] << " (" << health[index] << ")\n";
-    }
-    else if (choice == 2)
-    {
-        int index = 0;
-        for (int i = 1; i < health.size(); i++)
-            if (health[i] < health[index]) index = i;
-
-        std::cout << "Min health: " << name[index] << " (" << health[index] << ")\n";
-    }
-    else
-    {
-        std::cout << "Dead players:\n";
-        for (int i = 0; i < health.size(); i++)
-            if (health[i] <= 0)
-                std::cout << name[i] << std::endl;
-    }
-}
-
-int main()
-{
-    int player_count;
-    std::vector<std::string> name;
-    std::vector<float> health;
-    std::vector<std::string> character_class;
-
-    setPlayerCount(player_count);
-    setPlayersData(player_count, name, health, character_class);
-    causeDamage(health);
-    getPlayersState(name, health, character_class);
-    handleQuery(name, health);
+    std::cout << "\nPress Enter to exit...";
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    std::cin.get();
 
     return 0;
 }
-
