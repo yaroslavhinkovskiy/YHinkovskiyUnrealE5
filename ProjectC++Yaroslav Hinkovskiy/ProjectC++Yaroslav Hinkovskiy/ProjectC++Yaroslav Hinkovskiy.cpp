@@ -10,6 +10,56 @@
 
 typedef std::map<int, int> Army;
 
+/* ================== PASSIVE ITEM ================== */
+class PassiveItem {
+public:
+    std::string icon;
+    int strBonus, intBonus, agiBonus;
+
+    PassiveItem(std::string ic, int s, int i, int a)
+        : icon(ic), strBonus(s), intBonus(i), agiBonus(a) {
+    }
+
+    void apply(int& str, int& intel, int& agi) {
+        str += strBonus;
+        intel += intBonus;
+        agi += agiBonus;
+    }
+};
+
+/* ================== WEAPON ================== */
+class Weapon {
+public:
+    std::string icon;
+    int damage;
+    int cooldown;
+    int currentCooldown;
+
+    Weapon(std::string ic, int dmg, int cd)
+        : icon(ic), damage(dmg), cooldown(cd), currentCooldown(0) {
+    }
+
+    bool ready() const {
+        return currentCooldown == 0;
+    }
+
+    void use() {
+        if (ready()) {
+            std::cout << "Weapon attack! Damage: " << damage << "\n";
+            currentCooldown = cooldown;
+        }
+        else {
+            std::cout << "Weapon on cooldown: " << currentCooldown << "\n";
+        }
+    }
+
+    void tick() {
+        if (currentCooldown > 0)
+            currentCooldown--;
+    }
+};
+
+/* ================== CHARACTER ================== */
 class Character {
 public:
     std::string name;
@@ -20,150 +70,138 @@ public:
     Army army;
     bool took_damage;
 
-    Character() : health(0), x(0), y(0), speed(1), took_damage(false) {}
+    
+    int strength, intelligence, agility;
+
+    Weapon* weapon;
+    PassiveItem* passives[3];
+
+    Character()
+        : health(0), x(0), y(0), speed(1),
+        took_damage(false),
+        strength(10), intelligence(10), agility(10),
+        weapon(nullptr)
+    {
+        for (int i = 0; i < 3; i++) passives[i] = nullptr;
+    }
 
     void Move(int dx, int dy) {
         x += dx * speed;
         y += dy * speed;
-        std::cout << "Character " << name << " moved to (" << x << ", " << y << ")\n";
+        std::cout << name << " moved to (" << x << ", " << y << ")\n";
+    }
+
+    void equipWeapon(Weapon* w) {
+        if (weapon)
+            std::cout << name << " replaced weapon\n";
+        else
+            std::cout << name << " picked up weapon\n";
+        weapon = w;
+    }
+
+    void attack() {
+        if (!weapon) {
+            std::cout << name << " has no weapon!\n";
+            return;
+        }
+        weapon->use();
+    }
+
+    void addPassive(PassiveItem* item, int slot) {
+        if (slot < 0 || slot >= 3) return;
+        passives[slot] = item;
+        item->apply(strength, intelligence, agility);
     }
 
     void input(int index) {
-        std::cout << "\n--- Setting data for player " << (index + 1) << " ---\n";
-        std::cout << "Enter nickname: ";
+        std::cout << "\n--- Player " << index + 1 << " ---\n";
+        std::cout << "Name: ";
         std::cin >> name;
 
-        std::cout << "Enter health: ";
+        std::cout << "Health: ";
         while (!(std::cin >> health)) {
             std::cin.clear();
             std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            std::cout << "Invalid. Enter health: ";
         }
 
-        std::cout << "Enter class: ";
+        std::cout << "Class: ";
         std::cin >> character_class;
 
-        std::cout << "Enter position (x y): ";
+        std::cout << "Position (x y): ";
         std::cin >> x >> y;
 
-        std::cout << "Enter speed: ";
+        std::cout << "Speed: ";
         std::cin >> speed;
 
-        int n_units;
-        std::cout << "Enter number of unit entries: ";
-        std::cin >> n_units;
+        int n;
+        std::cout << "Army entries: ";
+        std::cin >> n;
 
-        for (int j = 0; j < n_units; j++) {
-            int unit_type, count;
-            std::cout << "  Entry " << j + 1 << " (Type and Count): ";
-            while (!(std::cin >> unit_type >> count)) {
-                std::cin.clear();
-                std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-                std::cout << "  Error! Enter two numbers: ";
-            }
-            army[unit_type] += count;
+        for (int i = 0; i < n; i++) {
+            int type, count;
+            std::cin >> type >> count;
+            army[type] += count;
         }
     }
 };
 
+/* ================== METEOR ================== */
 void processMeteor(std::vector<Character>& characters) {
     int mx, my;
-    float m_damage, m_power;
+    float dmg, power;
 
-    std::cout << "\n--- Meteor Event ---\n";
-    std::cout << "Enter meteor coordinates (x y): ";
-    std::cin >> mx >> my;
-    std::cout << "Enter meteor damage and power: ";
-    std::cin >> m_damage >> m_power;
+    std::cout << "\nMeteor (x y dmg power): ";
+    std::cin >> mx >> my >> dmg >> power;
 
-    float affect_radius = 3.0f * m_power;
+    float radius = 3.0f * power;
 
-    for (size_t i = 0; i < characters.size(); ++i) {
-        float dx = (float)characters[i].x - mx;
-        float dy = (float)characters[i].y - my;
-        float distance = (float)std::sqrt(dx * dx + dy * dy);
-
-        if (distance <= affect_radius) {
-            characters[i].health -= m_damage;
-            characters[i].took_damage = true;
+    for (auto& c : characters) {
+        float dist = std::sqrt((c.x - mx) * (c.x - mx) + (c.y - my) * (c.y - my));
+        if (dist <= radius) {
+            c.health -= dmg;
+            c.took_damage = true;
         }
     }
 }
 
-void getPlayersState(const std::vector<Character>& characters) {
-    std::cout << "\n--- Final Results ---" << std::endl;
-    bool anyone_dead = false;
-
-    for (size_t i = 0; i < characters.size(); ++i) {
-        const Character& c = characters[i];
-        std::cout << "Name: " << c.name << " [" << c.character_class << "]" << std::endl;
-        std::cout << "Position: (" << c.x << ", " << c.y << ")" << std::endl;
-
-        float display_hp = (c.health > 0) ? c.health : 0;
-        if (c.health <= 0) {
-            std::cout << "Status: DEAD (0 hp)" << std::endl;
-            anyone_dead = true;
-        }
-        else {
-            std::cout << "Health: " << display_hp << " hp" << (c.took_damage ? " (WOUNDED)" : "") << std::endl;
-        }
-
-        if (!c.army.empty()) {
-            int min_t = c.army.begin()->first;
-            int max_t = c.army.begin()->first;
-            
-            for (Army::const_iterator it = c.army.begin(); it != c.army.end(); ++it) {
-                int type = it->first;
-                int count = it->second;
-                if (count < c.army.at(min_t)) min_t = type;
-                if (count > c.army.at(max_t)) max_t = type;
-            }
-            std::cout << "Army - Max: Type " << max_t << ", Min: Type " << min_t << std::endl;
-        }
-        std::cout << "---------------------------" << std::endl;
-    }
-
-    if (anyone_dead) {
-        std::cout << "DEAD LIST: ";
-        for (const auto& c : characters) {
-            if (c.health <= 0) std::cout << c.name << " ";
-        }
-        std::cout << std::endl;
+/* ================== STATE ================== */
+void getPlayersState(const std::vector<Character>& chars) {
+    std::cout << "\n--- RESULTS ---\n";
+    for (const auto& c : chars) {
+        std::cout << c.name << " [" << c.character_class << "]\n";
+        std::cout << "HP: " << (c.health > 0 ? c.health : 0)
+            << (c.took_damage ? " WOUNDED\n" : "\n");
+        std::cout << "STR: " << c.strength
+            << " INT: " << c.intelligence
+            << " AGI: " << c.agility << "\n";
+        std::cout << "----------------------\n";
     }
 }
 
+/* ================== MAIN ================== */
 int main() {
     int n;
-    std::cout << "Enter count of players: ";
-    if (!(std::cin >> n) || n <= 0) return 0;
+    std::cout << "Players count: ";
+    std::cin >> n;
 
     std::vector<Character> characters(n);
-    for (int i = 0; i < n; ++i) {
+    for (int i = 0; i < n; i++)
         characters[i].input(i);
-    }
 
-    int m;
-    std::cout << "\nEnter number of movement commands: ";
-    std::cin >> m;
-    for (int i = 0; i < m; ++i) {
-        int id, moveX, moveY;
-        std::cout << "Command (Character_ID x y): ";
-        std::cin >> id >> moveX >> moveY;
+    Weapon sword("sword.png", 30, 2);
+    PassiveItem ring("ring.png", 2, 3, 1);
 
-        if (id >= 0 && id < (int)characters.size()) {
-            characters[id].Move(moveX, moveY);
-        }
-        else {
-            std::cout << "Invalid Character ID!\n";
-        }
-    }
+    characters[0].equipWeapon(&sword);
+    characters[0].addPassive(&ring, 0);
+
+    characters[0].attack();
+    characters[0].attack();
+    sword.tick();
+    sword.tick();
+    characters[0].attack();
 
     processMeteor(characters);
     getPlayersState(characters);
-
-    std::cout << "\nPress Enter to exit...";
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    std::cin.get();
 
     return 0;
 }
