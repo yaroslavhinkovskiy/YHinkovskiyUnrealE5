@@ -7,23 +7,47 @@
 #include <map>
 #include <cmath>
 #include <limits>
+#include <memory>
 
 typedef std::map<int, int> Army;
 
-/* ================== PASSIVE ITEM ================== */
-class PassiveItem {
+/* ================== BASE ITEM ================== */
+class Item {
 public:
     std::string icon;
+    virtual ~Item() = default;
+
+    virtual void applyStats(int& str, int& intel, int& agi) {}
+    virtual int speedBonus() const { return 0; }
+};
+
+/* ================== PASSIVE ITEM ================== */
+class PassiveItem : public Item {
+public:
     int strBonus, intBonus, agiBonus;
 
     PassiveItem(std::string ic, int s, int i, int a)
-        : icon(ic), strBonus(s), intBonus(i), agiBonus(a) {
+        : strBonus(s), intBonus(i), agiBonus(a) {
+        icon = ic;
     }
 
-    void apply(int& str, int& intel, int& agi) {
+    void applyStats(int& str, int& intel, int& agi) override {
         str += strBonus;
         intel += intBonus;
         agi += agiBonus;
+    }
+};
+
+/* ================== SPEED ITEM ================== */
+class SpeedItem : public Item {
+    int bonus;
+public:
+    SpeedItem(std::string ic, int b) : bonus(b) {
+        icon = ic;
+    }
+
+    int speedBonus() const override {
+        return bonus;
     }
 };
 
@@ -66,36 +90,32 @@ public:
     std::string character_class;
     float health;
     int x, y;
-    int speed;
+
+    int baseSpeed;
+    int currentSpeed;
+
     Army army;
     bool took_damage;
 
-    
     int strength, intelligence, agility;
 
-    Weapon* weapon;
-    PassiveItem* passives[3];
+    std::shared_ptr<Weapon> weapon;
+    std::vector<std::shared_ptr<Item>> inventory;
 
     Character()
-        : health(0), x(0), y(0), speed(1),
+        : health(0), x(0), y(0),
+        baseSpeed(1), currentSpeed(1),
         took_damage(false),
-        strength(10), intelligence(10), agility(10),
-        weapon(nullptr)
-    {
-        for (int i = 0; i < 3; i++) passives[i] = nullptr;
+        strength(10), intelligence(10), agility(10) {
     }
 
-    void Move(int dx, int dy) {
-        x += dx * speed;
-        y += dy * speed;
+    void move(int dx, int dy) {
+        x += dx * currentSpeed;
+        y += dy * currentSpeed;
         std::cout << name << " moved to (" << x << ", " << y << ")\n";
     }
 
-    void equipWeapon(Weapon* w) {
-        if (weapon)
-            std::cout << name << " replaced weapon\n";
-        else
-            std::cout << name << " picked up weapon\n";
+    void equipWeapon(std::shared_ptr<Weapon> w) {
         weapon = w;
     }
 
@@ -107,10 +127,18 @@ public:
         weapon->use();
     }
 
-    void addPassive(PassiveItem* item, int slot) {
-        if (slot < 0 || slot >= 3) return;
-        passives[slot] = item;
-        item->apply(strength, intelligence, agility);
+    /* === INVENTORY === */
+    void addItemToInventory(std::shared_ptr<Item> item) {
+        inventory.push_back(item);
+        item->applyStats(strength, intelligence, agility);
+        recalculateSpeed();
+    }
+
+    void recalculateSpeed() {
+        currentSpeed = baseSpeed;
+        for (const auto& item : inventory) {
+            currentSpeed += item->speedBonus();
+        }
     }
 
     void input(int index) {
@@ -119,10 +147,7 @@ public:
         std::cin >> name;
 
         std::cout << "Health: ";
-        while (!(std::cin >> health)) {
-            std::cin.clear();
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        }
+        std::cin >> health;
 
         std::cout << "Class: ";
         std::cin >> character_class;
@@ -130,18 +155,9 @@ public:
         std::cout << "Position (x y): ";
         std::cin >> x >> y;
 
-        std::cout << "Speed: ";
-        std::cin >> speed;
-
-        int n;
-        std::cout << "Army entries: ";
-        std::cin >> n;
-
-        for (int i = 0; i < n; i++) {
-            int type, count;
-            std::cin >> type >> count;
-            army[type] += count;
-        }
+        std::cout << "Base speed: ";
+        std::cin >> baseSpeed;
+        currentSpeed = baseSpeed;
     }
 };
 
@@ -174,6 +190,7 @@ void getPlayersState(const std::vector<Character>& chars) {
         std::cout << "STR: " << c.strength
             << " INT: " << c.intelligence
             << " AGI: " << c.agility << "\n";
+        std::cout << "Speed: " << c.currentSpeed << "\n";
         std::cout << "----------------------\n";
     }
 }
@@ -188,16 +205,17 @@ int main() {
     for (int i = 0; i < n; i++)
         characters[i].input(i);
 
-    Weapon sword("sword.png", 30, 2);
-    PassiveItem ring("ring.png", 2, 3, 1);
+    auto sword = std::make_shared<Weapon>("sword.png", 30, 2);
+    auto ring = std::make_shared<PassiveItem>("ring.png", 2, 3, 1);
+    auto boots = std::make_shared<SpeedItem>("boots.png", 2);
 
-    characters[0].equipWeapon(&sword);
-    characters[0].addPassive(&ring, 0);
+    characters[0].equipWeapon(sword);
+    characters[0].addItemToInventory(ring);
+    characters[0].addItemToInventory(boots);
 
     characters[0].attack();
-    characters[0].attack();
-    sword.tick();
-    sword.tick();
+    sword->tick();
+    sword->tick();
     characters[0].attack();
 
     processMeteor(characters);
