@@ -8,10 +8,18 @@
 #include <cmath>
 #include <limits>
 #include <memory>
+#include <algorithm>
 
 typedef std::map<int, int> Army;
 
-/* ================== BASE ITEM ================== */
+class Character;
+
+class IObserver {
+public:
+    virtual ~IObserver() = default;
+    virtual void onNotify(const Character& character, const std::string& event) = 0;
+};
+
 class Item {
 public:
     std::string icon;
@@ -21,7 +29,6 @@ public:
     virtual int speedBonus() const { return 0; }
 };
 
-/* ================== PASSIVE ITEM ================== */
 class PassiveItem : public Item {
 public:
     int strBonus, intBonus, agiBonus;
@@ -38,7 +45,6 @@ public:
     }
 };
 
-/* ================== SPEED ITEM ================== */
 class SpeedItem : public Item {
     int bonus;
 public:
@@ -51,7 +57,6 @@ public:
     }
 };
 
-/* ================== WEAPON ================== */
 class Weapon {
 public:
     std::string icon;
@@ -83,7 +88,6 @@ public:
     }
 };
 
-/* ================== CHARACTER ================== */
 class Character {
 public:
     std::string name;
@@ -102,11 +106,38 @@ public:
     std::shared_ptr<Weapon> weapon;
     std::vector<std::shared_ptr<Item>> inventory;
 
+private:
+    std::vector<IObserver*> observers;
+
+public:
     Character()
         : health(0), x(0), y(0),
         baseSpeed(1), currentSpeed(1),
         took_damage(false),
         strength(10), intelligence(10), agility(10) {
+    }
+
+    void addObserver(IObserver* obs) {
+        observers.push_back(obs);
+    }
+
+    void removeObserver(IObserver* obs) {
+        observers.erase(
+            std::remove(observers.begin(), observers.end(), obs),
+            observers.end()
+        );
+    }
+
+    void notify(const std::string& event) {
+        for (auto* obs : observers) {
+            obs->onNotify(*this, event);
+        }
+    }
+
+    void takeDamage(float dmg) {
+        health -= dmg;
+        took_damage = true;
+        notify("damage");
     }
 
     void move(int dx, int dy) {
@@ -127,7 +158,6 @@ public:
         weapon->use();
     }
 
-    /* === INVENTORY === */
     void addItemToInventory(std::shared_ptr<Item> item) {
         inventory.push_back(item);
         item->applyStats(strength, intelligence, agility);
@@ -161,7 +191,29 @@ public:
     }
 };
 
-/* ================== METEOR ================== */
+class DamageLogger : public IObserver {
+public:
+    void onNotify(const Character& character, const std::string& event) override {
+        if (event == "damage") {
+            std::cout << "[LOGGER] "
+                << character.name
+                << " got damage! HP left: "
+                << character.health << "\n";
+        }
+    }
+};
+
+class HealthMonitor : public IObserver {
+public:
+    void onNotify(const Character& character, const std::string& event) override {
+        if (event == "damage" && character.health <= 0) {
+            std::cout << "[MONITOR] "
+                << character.name
+                << " is DEAD!\n";
+        }
+    }
+};
+
 void processMeteor(std::vector<Character>& characters) {
     int mx, my;
     float dmg, power;
@@ -174,13 +226,11 @@ void processMeteor(std::vector<Character>& characters) {
     for (auto& c : characters) {
         float dist = std::sqrt((c.x - mx) * (c.x - mx) + (c.y - my) * (c.y - my));
         if (dist <= radius) {
-            c.health -= dmg;
-            c.took_damage = true;
+            c.takeDamage(dmg);
         }
     }
 }
 
-/* ================== STATE ================== */
 void getPlayersState(const std::vector<Character>& chars) {
     std::cout << "\n--- RESULTS ---\n";
     for (const auto& c : chars) {
@@ -195,7 +245,6 @@ void getPlayersState(const std::vector<Character>& chars) {
     }
 }
 
-/* ================== MAIN ================== */
 int main() {
     int n;
     std::cout << "Players count: ";
@@ -212,6 +261,14 @@ int main() {
     characters[0].equipWeapon(sword);
     characters[0].addItemToInventory(ring);
     characters[0].addItemToInventory(boots);
+
+    DamageLogger logger;
+    HealthMonitor monitor;
+
+    for (auto& c : characters) {
+        c.addObserver(&logger);
+        c.addObserver(&monitor);
+    }
 
     characters[0].attack();
     sword->tick();
