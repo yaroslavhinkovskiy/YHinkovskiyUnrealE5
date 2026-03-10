@@ -10,7 +10,35 @@
 #include <memory>
 #include <algorithm>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 typedef std::map<int, int> Army;
+
+
+struct Vector3 {
+    double x, y, z;
+
+    Vector3 operator-(const Vector3& other) const {
+        return { x - other.x, y - other.y, z - other.z };
+    }
+
+    double length() const {
+        return std::sqrt(x * x + y * y + z * z);
+    }
+
+    Vector3 normalized() const {
+        double len = length();
+        return (len > 0) ? Vector3{ x / len, y / len, z / len } : Vector3{ 0, 0, 0 };
+    }
+};
+
+struct TargetData {
+    Vector3 direction;
+    double angle;
+    std::string side;
+};
 
 class Character;
 
@@ -24,7 +52,6 @@ class Item {
 public:
     std::string icon;
     virtual ~Item() = default;
-
     virtual void applyStats(int& str, int& intel, int& agi) {}
     virtual int speedBonus() const { return 0; }
 };
@@ -32,12 +59,10 @@ public:
 class PassiveItem : public Item {
 public:
     int strBonus, intBonus, agiBonus;
-
     PassiveItem(std::string ic, int s, int i, int a)
         : strBonus(s), intBonus(i), agiBonus(a) {
         icon = ic;
     }
-
     void applyStats(int& str, int& intel, int& agi) override {
         str += strBonus;
         intel += intBonus;
@@ -51,10 +76,7 @@ public:
     SpeedItem(std::string ic, int b) : bonus(b) {
         icon = ic;
     }
-
-    int speedBonus() const override {
-        return bonus;
-    }
+    int speedBonus() const override { return bonus; }
 };
 
 class Weapon {
@@ -68,9 +90,7 @@ public:
         : icon(ic), damage(dmg), cooldown(cd), currentCooldown(0) {
     }
 
-    bool ready() const {
-        return currentCooldown == 0;
-    }
+    bool ready() const { return currentCooldown == 0; }
 
     void use() {
         if (ready()) {
@@ -83,8 +103,7 @@ public:
     }
 
     void tick() {
-        if (currentCooldown > 0)
-            currentCooldown--;
+        if (currentCooldown > 0) currentCooldown--;
     }
 };
 
@@ -93,14 +112,13 @@ public:
     std::string name;
     std::string character_class;
     float health;
-    int x, y;
+    int x, y; 
+    Vector3 forwardVector; 
 
     int baseSpeed;
     int currentSpeed;
-
     Army army;
     bool took_damage;
-
     int strength, intelligence, agility;
 
     std::shared_ptr<Weapon> weapon;
@@ -111,27 +129,16 @@ private:
 
 public:
     Character()
-        : health(0), x(0), y(0),
+        : health(0), x(0), y(0), forwardVector({ 1, 0, 0 }),
         baseSpeed(1), currentSpeed(1),
         took_damage(false),
         strength(10), intelligence(10), agility(10) {
     }
 
-    void addObserver(IObserver* obs) {
-        observers.push_back(obs);
-    }
-
-    void removeObserver(IObserver* obs) {
-        observers.erase(
-            std::remove(observers.begin(), observers.end(), obs),
-            observers.end()
-        );
-    }
+    void addObserver(IObserver* obs) { observers.push_back(obs); }
 
     void notify(const std::string& event) {
-        for (auto* obs : observers) {
-            obs->onNotify(*this, event);
-        }
+        for (auto* obs : observers) obs->onNotify(*this, event);
     }
 
     void takeDamage(float dmg) {
@@ -140,22 +147,25 @@ public:
         notify("damage");
     }
 
-    void move(int dx, int dy) {
-        x += dx * currentSpeed;
-        y += dy * currentSpeed;
-        std::cout << name << " moved to (" << x << ", " << y << ")\n";
-    }
+    
+    TargetData analyzeTarget(const Character& target) {
+        Vector3 myPos = { (double)x, (double)y, 0 };
+        Vector3 targetPos = { (double)target.x, (double)target.y, 0 };
 
-    void equipWeapon(std::shared_ptr<Weapon> w) {
-        weapon = w;
-    }
+        Vector3 dirToTarget = (targetPos - myPos).normalized();
+        Vector3 fwdNorm = forwardVector.normalized();
 
-    void attack() {
-        if (!weapon) {
-            std::cout << name << " has no weapon!\n";
-            return;
-        }
-        weapon->use();
+        
+        double dot = fwdNorm.x * dirToTarget.x + fwdNorm.y * dirToTarget.y + fwdNorm.z * dirToTarget.z;
+        if (dot > 1.0) dot = 1.0;
+        if (dot < -1.0) dot = -1.0;
+        double angleDeg = std::acos(dot) * (180.0 / M_PI);
+
+        
+        double crossZ = fwdNorm.x * dirToTarget.y - fwdNorm.y * dirToTarget.x;
+        std::string side = (crossZ >= 0) ? "Right" : "Left";
+
+        return { dirToTarget, angleDeg, side };
     }
 
     void addItemToInventory(std::shared_ptr<Item> item) {
@@ -166,28 +176,18 @@ public:
 
     void recalculateSpeed() {
         currentSpeed = baseSpeed;
-        for (const auto& item : inventory) {
-            currentSpeed += item->speedBonus();
-        }
+        for (const auto& item : inventory) currentSpeed += item->speedBonus();
     }
 
     void input(int index) {
         std::cout << "\n--- Player " << index + 1 << " ---\n";
-        std::cout << "Name: ";
-        std::cin >> name;
-
-        std::cout << "Health: ";
-        std::cin >> health;
-
-        std::cout << "Class: ";
-        std::cin >> character_class;
-
-        std::cout << "Position (x y): ";
-        std::cin >> x >> y;
-
-        std::cout << "Base speed: ";
-        std::cin >> baseSpeed;
+        std::cout << "Name: "; std::cin >> name;
+        std::cout << "Health: "; std::cin >> health;
+        std::cout << "Position (x y): "; std::cin >> x >> y;
+        std::cout << "Base speed: "; std::cin >> baseSpeed;
         currentSpeed = baseSpeed;
+        
+        forwardVector = { 1, 0, 0 };
     }
 };
 
@@ -195,88 +195,27 @@ class DamageLogger : public IObserver {
 public:
     void onNotify(const Character& character, const std::string& event) override {
         if (event == "damage") {
-            std::cout << "[LOGGER] "
-                << character.name
-                << " got damage! HP left: "
-                << character.health << "\n";
+            std::cout << "[LOGGER] " << character.name << " wounded! HP: " << character.health << "\n";
         }
     }
 };
-
-class HealthMonitor : public IObserver {
-public:
-    void onNotify(const Character& character, const std::string& event) override {
-        if (event == "damage" && character.health <= 0) {
-            std::cout << "[MONITOR] "
-                << character.name
-                << " is DEAD!\n";
-        }
-    }
-};
-
-void processMeteor(std::vector<Character>& characters) {
-    int mx, my;
-    float dmg, power;
-
-    std::cout << "\nMeteor (x y dmg power): ";
-    std::cin >> mx >> my >> dmg >> power;
-
-    float radius = 3.0f * power;
-
-    for (auto& c : characters) {
-        float dist = std::sqrt((c.x - mx) * (c.x - mx) + (c.y - my) * (c.y - my));
-        if (dist <= radius) {
-            c.takeDamage(dmg);
-        }
-    }
-}
-
-void getPlayersState(const std::vector<Character>& chars) {
-    std::cout << "\n--- RESULTS ---\n";
-    for (const auto& c : chars) {
-        std::cout << c.name << " [" << c.character_class << "]\n";
-        std::cout << "HP: " << (c.health > 0 ? c.health : 0)
-            << (c.took_damage ? " WOUNDED\n" : "\n");
-        std::cout << "STR: " << c.strength
-            << " INT: " << c.intelligence
-            << " AGI: " << c.agility << "\n";
-        std::cout << "Speed: " << c.currentSpeed << "\n";
-        std::cout << "----------------------\n";
-    }
-}
 
 int main() {
     int n;
-    std::cout << "Players count: ";
-    std::cin >> n;
+    std::cout << "Players count: "; std::cin >> n;
+    if (n < 2) n = 2; 
 
     std::vector<Character> characters(n);
-    for (int i = 0; i < n; i++)
-        characters[i].input(i);
+    for (int i = 0; i < n; i++) characters[i].input(i);
 
-    auto sword = std::make_shared<Weapon>("sword.png", 30, 2);
-    auto ring = std::make_shared<PassiveItem>("ring.png", 2, 3, 1);
-    auto boots = std::make_shared<SpeedItem>("boots.png", 2);
+    
+    TargetData info = characters[0].analyzeTarget(characters[1]);
 
-    characters[0].equipWeapon(sword);
-    characters[0].addItemToInventory(ring);
-    characters[0].addItemToInventory(boots);
-
-    DamageLogger logger;
-    HealthMonitor monitor;
-
-    for (auto& c : characters) {
-        c.addObserver(&logger);
-        c.addObserver(&monitor);
-    }
-
-    characters[0].attack();
-    sword->tick();
-    sword->tick();
-    characters[0].attack();
-
-    processMeteor(characters);
-    getPlayersState(characters);
+    std::cout << "\n--- TARGET ANALYSIS (Player 1 to Player 2) ---\n";
+    std::cout << "Direction: (" << info.direction.x << ", " << info.direction.y << ")\n";
+    std::cout << "Angle: " << info.angle << " degrees\n";
+    std::cout << "Side: " << info.side << "\n";
+    std::cout << "------------------------------------------\n";
 
     return 0;
 }

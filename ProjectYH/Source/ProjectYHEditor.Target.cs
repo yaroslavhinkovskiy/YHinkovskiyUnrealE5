@@ -9,7 +9,7 @@ public class ProjectYHEditorTarget : TargetRules
 	{
 		Type = TargetType.Editor;
 		DefaultBuildSettings = BuildSettingsVersion.V5;
-
-		ExtraModuleNames.AddRange( new string[] { "ProjectYH" } );
+        IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
+        ExtraModuleNames.AddRange( new string[] { "ProjectYH" } );
 	}
 }
